@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     wordpress_kg_username: str
     wordpress_kg_password: str
     chat_ru_username: str = "news_handler"
-    chat_kg_username: str = "news_handler_kg"
+    chat_kg_username: str = "kloopkyrgyz"
     hashtag_ru: str = "#новости"
     hashtag_kg: str = "#кабарлар"
 

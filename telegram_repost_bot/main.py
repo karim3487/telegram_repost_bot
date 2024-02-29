@@ -111,7 +111,7 @@ def is_post(text: str):
     return hashtag_ru in text or hashtag_kg in text
 
 
-app = Client("net3487", api_id, api_hash)
+app = Client("../telegram_sessions/net3487", api_id, api_hash)
 
 
 @app.on_message(filters.chat([chat_ru_username, chat_kg_username]) & ~filters.photo)
