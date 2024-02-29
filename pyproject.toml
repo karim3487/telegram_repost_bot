@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "telegram-repost-bot"
+version = "0.1.0"
+description = ""
+authors = ["Karim Kabirov <karim3487@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+aiohttp = "3.9.3"
+pydantic = "1.10.14"
+pyrogram = "2.0.106"
+
+
+[tool.poetry.group.dev.dependencies]
+black = "^24.2.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
