@@ -3,7 +3,7 @@ from pydantic import SecretStr, BaseSettings
 
 class Settings(BaseSettings):
     api_id: int
-    api_hash: SecretStr
+    api_hash: str
     wordpress_ru_url: str = "https://kloop.kg/wp-json"
     wordpress_ru_username: str
     wordpress_ru_password: str
