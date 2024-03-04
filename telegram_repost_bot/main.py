@@ -2,10 +2,10 @@ import json
 
 import aiohttp
 from pyrogram import Client, filters
-from pyrogram.enums import MessageEntityType
 from pyrogram.types import Message
 
 from config_reader import config
+from telegram_repost_bot.utils import parse_post, is_post
 
 api_id = config.api_id
 api_hash = config.api_hash
@@ -71,48 +71,9 @@ async def upload_image_to_wordpress_kg(session, auth, image_path):
             return None
 
 
-def extract_title(text: str):
-    split_by_dot = text.split(".")[0]
-    split_by_newline = text.split("\n")[0]
-    if len(split_by_dot) > len(split_by_newline):
-        return split_by_dot.strip()
-    return split_by_newline.strip()
-
-
-def parse_post(message: Message):
-    text = message.text or message.caption
-    entities = message.entities or message.caption_entities
-    if len(entities) >= 2 and entities[0].type == MessageEntityType.BOLD:
-        start = entities[0].offset
-        end = start + entities[0].length
-        title = text[start:end].strip()
-        content = text[end + 1 : entities[-1].offset].strip()
-    else:
-        title = extract_title(text)
-        content = text[0 : entities[-1].offset].strip()
-    # Add links
-    for entity in entities:
-        if entity.type == MessageEntityType.URL:
-            start = entity.offset
-            end = start + entity.length
-            url = text[start:end]
-            content = content.replace(url, f'<a href="{url}">{url}</a>')
-        elif entity.type == MessageEntityType.TEXT_LINK:
-            start = entity.offset
-            end = start + entity.length
-            url = entity.url
-            text_link = text[start:end]
-            content = content.replace(text_link, f'<a href="{url}">{text_link}</a>')
-
-    return title, content
-
-
-def is_post(text: str):
-    return hashtag_ru in text or hashtag_kg in text
-
-
 app = Client("../telegram_sessions/net3487", api_id, api_hash)
 
+app.send_message()
 
 @app.on_message(filters.chat([chat_ru_username, chat_kg_username]) & ~filters.photo)
 async def channel_text_message_handler(client: Client, message: Message):
@@ -126,7 +87,7 @@ async def channel_text_message_handler(client: Client, message: Message):
         return
 
     text_post = message.text
-    if not is_post(text_post):
+    if not is_post(text_post, hashtag_ru, hashtag_kg):
         return
 
     chat_username = message.chat.username
@@ -150,7 +111,7 @@ async def channel_media_message_handler(client: Client, message: Message):
         return
 
     text_post = message.caption
-    if not is_post(text_post):
+    if not is_post(text_post, hashtag_ru, hashtag_kg):
         return
 
     chat_username = message.chat.username
