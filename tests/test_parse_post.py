@@ -32,7 +32,9 @@ class TestParsePost(unittest.TestCase):
 
         message = Message(
             id=1,
-            text=Str("Заголовок\n\nЭтот пост с ссылкой https://example.com\n\n#новости"),
+            text=Str(
+                "Заголовок\n\nЭтот пост с ссылкой https://example.com\n\n#новости"
+            ),
             caption=None,
             entities=[
                 MessageEntity(type=met.BOLD, offset=0, length=9),

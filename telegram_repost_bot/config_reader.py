@@ -1,4 +1,4 @@
-from pydantic import SecretStr, BaseSettings
+from pydantic import BaseSettings
 
 
 class Settings(BaseSettings):

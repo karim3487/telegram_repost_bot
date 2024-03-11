@@ -1,7 +1,4 @@
 import base64
-import json
-
-import aiohttp
 import requests
 from pyrogram import Client, filters
 from pyrogram.types import Message
@@ -39,12 +36,12 @@ def publish_post_to_wordpress_ru(title, content, image_path=None):
     session_cookie = login_and_save_cookies()
 
     if session_cookie:
-        wordpress_credentials = wordpress_ru_username + ':' + wordpress_ru_password
+        wordpress_credentials = wordpress_ru_username + ":" + wordpress_ru_password
         wordpress_token = base64.b64encode(wordpress_credentials.encode())
 
         headers = {
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:122.0) Gecko/20100101 Firefox/122.0",
-            'Authorization': 'Basic ' + wordpress_token.decode('utf-8')
+            "Authorization": "Basic " + wordpress_token.decode("utf-8"),
         }
 
         data = {
@@ -58,7 +55,9 @@ def publish_post_to_wordpress_ru(title, content, image_path=None):
         session.cookies.update(session_cookie)
 
         if image_path:
-            image_id = upload_image_to_wordpress(image_path, session, f"{wordpress_ru_url}/wp/v2/media")
+            image_id = upload_image_to_wordpress(
+                image_path, session, f"{wordpress_ru_url}/wp/v2/media"
+            )
             data["featured_media"] = image_id
 
         response = session.post(f"{wordpress_ru_url}/wp/v2/posts", json=data)
@@ -75,12 +74,12 @@ def publish_post_to_wordpress_ru(title, content, image_path=None):
 
 
 def publish_post_to_wordpress_kg(title, content, image_path=None):
-    wordpress_credentials = wordpress_kg_username + ':' + wordpress_kg_password
+    wordpress_credentials = wordpress_kg_username + ":" + wordpress_kg_password
     wordpress_token = base64.b64encode(wordpress_credentials.encode())
 
     headers = {
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:122.0) Gecko/20100101 Firefox/122.0",
-        'Authorization': 'Basic ' + wordpress_token.decode('utf-8')
+        "Authorization": "Basic " + wordpress_token.decode("utf-8"),
     }
 
     data = {
@@ -93,7 +92,9 @@ def publish_post_to_wordpress_kg(title, content, image_path=None):
     session.headers.update(headers)
 
     if image_path:
-        image_id = upload_image_to_wordpress(image_path, session, f"{wordpress_kg_url}/wp/v2/media")
+        image_id = upload_image_to_wordpress(
+            image_path, session, f"{wordpress_kg_url}/wp/v2/media"
+        )
         data["featured_media"] = image_id
 
     response = session.post(f"{wordpress_kg_url}/wp/v2/posts", json=data)
@@ -108,7 +109,7 @@ def publish_post_to_wordpress_kg(title, content, image_path=None):
 
 
 def upload_image_to_wordpress(image_path, session, url):
-    files = {'file': open(image_path, 'rb')}
+    files = {"file": open(image_path, "rb")}
     response = session.post(url, files=files)
     if response.status_code == 201:
         media_data = response.json()

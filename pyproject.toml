@@ -7,10 +7,10 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.10"
-aiohttp = "3.9.3"
 pydantic = "1.10.14"
 pyrogram = "2.0.106"
 python-dotenv = "^1.0.1"
+requests = "^2.31.0"
 
 
 [tool.poetry.group.dev.dependencies]

@@ -31,8 +31,8 @@ def replace_links(text: str, entities: List[MessageEntity]) -> str:
 
 
 def remove_hashtags(text: str) -> str:
-    pattern = r'\B#\w*[a-zA-Zа-яА-Я]+\w*'
-    return re.sub(pattern, '', text).strip()
+    pattern = r"\B#\w*[a-zA-Zа-яА-Я]+\w*"
+    return re.sub(pattern, "", text).strip()
 
 
 def parse_post(message: Message) -> (str, str):
