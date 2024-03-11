@@ -1,6 +1,8 @@
+import base64
 import json
 
 import aiohttp
+import requests
 from pyrogram import Client, filters
 from pyrogram.types import Message
 
@@ -23,14 +25,27 @@ hashtag_ru = config.hashtag_ru
 hashtag_kg = config.hashtag_kg
 
 
-async def publish_post_to_wordpress_kg(title, content, image_path=None):
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:122.0) Gecko/20100101 Firefox/122.0",
-    }
-    async with aiohttp.ClientSession(headers=headers) as session:
-        auth = aiohttp.BasicAuth(
-            wordpress_kg_username, wordpress_kg_password, encoding="utf-8"
-        )
+def login_and_save_cookies():
+    with requests.Session() as session:
+        response = session.get("https://kloop.kg/greenboat/", allow_redirects=True)
+        if response.ok:
+            return session.cookies.get_dict()
+        else:
+            print("Failed to visit the hidden URL.")
+            return None
+
+
+def publish_post_to_wordpress_ru(title, content, image_path=None):
+    session_cookie = login_and_save_cookies()
+
+    if session_cookie:
+        wordpress_credentials = wordpress_ru_username + ':' + wordpress_ru_password
+        wordpress_token = base64.b64encode(wordpress_credentials.encode())
+
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:122.0) Gecko/20100101 Firefox/122.0",
+            'Authorization': 'Basic ' + wordpress_token.decode('utf-8')
+        }
 
         data = {
             "title": title,
@@ -38,42 +53,74 @@ async def publish_post_to_wordpress_kg(title, content, image_path=None):
             "status": "publish",
         }
 
+        session = requests.Session()
+        session.headers.update(headers)
+        session.cookies.update(session_cookie)
+
         if image_path:
-            image_id = await upload_image_to_wordpress_kg(session, auth, image_path)
+            image_id = upload_image_to_wordpress(image_path, session, f"{wordpress_ru_url}/wp/v2/media")
             data["featured_media"] = image_id
 
-        async with session.post(
-            f"{wordpress_kg_url}/wp/v2/posts", auth=auth, json=data
-        ) as response:
-            print(response.status)
-            if response.status == 201:
-                print("Новость успешно опубликована!")
-            else:
-                text = await response.text()
-                text.encode("utf-8", errors="")
-                print("Ошибка при публикации новости:", await response.text())
+        response = session.post(f"{wordpress_ru_url}/wp/v2/posts", json=data)
 
-
-async def upload_image_to_wordpress_kg(session, auth, image_path):
-    data = {"file": open(image_path, "rb")}
-    async with session.post(
-        f"{wordpress_kg_url}/wp/v2/media", auth=auth, data=data
-    ) as response:
-        if response.status == 201:
-            media_data = await response.json()
-            return media_data["id"]
+        print(response.status_code)
+        if response.status_code == 201:
+            print("Новость успешно опубликована!")
         else:
-            response_text = await response.text()
-            response_json = json.loads(response_text)
-            print("Ошибка при загрузке изображения:", response_json["message"])
+            text = response.text
+            text.encode("utf-8", errors="")
+            print("Ошибка при публикации новости:", text[:200])
+    else:
+        print("Failed to obtain session cookie.")
 
-            print("Ошибка при загрузке изображения:", await response.text())
-            return None
+
+def publish_post_to_wordpress_kg(title, content, image_path=None):
+    wordpress_credentials = wordpress_kg_username + ':' + wordpress_kg_password
+    wordpress_token = base64.b64encode(wordpress_credentials.encode())
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:122.0) Gecko/20100101 Firefox/122.0",
+        'Authorization': 'Basic ' + wordpress_token.decode('utf-8')
+    }
+
+    data = {
+        "title": title,
+        "content": content,
+        "status": "publish",
+    }
+
+    session = requests.Session()
+    session.headers.update(headers)
+
+    if image_path:
+        image_id = upload_image_to_wordpress(image_path, session, f"{wordpress_kg_url}/wp/v2/media")
+        data["featured_media"] = image_id
+
+    response = session.post(f"{wordpress_kg_url}/wp/v2/posts", json=data)
+
+    print(response.status_code)
+    if response.status_code == 201:
+        print("Новость успешно опубликована!")
+    else:
+        text = response.text
+        text.encode("utf-8", errors="")
+        print("Ошибка при публикации новости:", text[:200])
+
+
+def upload_image_to_wordpress(image_path, session, url):
+    files = {'file': open(image_path, 'rb')}
+    response = session.post(url, files=files)
+    if response.status_code == 201:
+        media_data = response.json()
+        return media_data["id"]
+    else:
+        response_json = response.json()
+        print("Ошибка при загрузке изображения:", response_json)
+        return None
 
 
 app = Client("../telegram_sessions/net3487", api_id, api_hash)
 
-app.send_message()
 
 @app.on_message(filters.chat([chat_ru_username, chat_kg_username]) & ~filters.photo)
 async def channel_text_message_handler(client: Client, message: Message):
@@ -93,10 +140,9 @@ async def channel_text_message_handler(client: Client, message: Message):
     chat_username = message.chat.username
     title, content = parse_post(message)
     if chat_username == chat_kg_username:
-        await publish_post_to_wordpress_kg(title, content)
+        publish_post_to_wordpress_kg(title, content)
     elif chat_username == chat_ru_username:
-        pass
-        # await publish_post_to_wordpress_kg(title, content)
+        publish_post_to_wordpress_ru(title, content)
 
 
 @app.on_message(filters.chat([chat_ru_username, chat_kg_username]) & filters.media)
@@ -118,10 +164,9 @@ async def channel_media_message_handler(client: Client, message: Message):
     title, content = parse_post(message)
     image_path = await app.download_media(message.photo.file_id)
     if chat_username == chat_kg_username:
-        await publish_post_to_wordpress_kg(title, content, image_path)
+        publish_post_to_wordpress_kg(title, content, image_path)
     elif chat_username == chat_ru_username:
-        # await publish_post_to_wordpress_ru(title, content, image_path)
-        pass
+        publish_post_to_wordpress_ru(title, content, image_path)
 
 
 app.run()
