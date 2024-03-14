@@ -8,12 +8,18 @@ from telegram_repost_bot.utils import parse_post, is_post
 
 api_id = config.api_id
 api_hash = config.api_hash
-wordpress_ru_url = config.wordpress_ru_url
-wordpress_ru_username = config.wordpress_ru_username
-wordpress_ru_password = config.wordpress_ru_password
-wordpress_kg_url = config.wordpress_kg_url
-wordpress_kg_username = config.wordpress_kg_username
-wordpress_kg_password = config.wordpress_kg_password
+wp_ru_url = config.wordpress_ru_url
+wp_ru_username = config.wordpress_ru_username
+wp_ru_password = config.wordpress_ru_password
+wp_ru_author_id = config.wordpress_ru_author_id
+wp_ru_categories = config.wordpress_ru_categories
+
+wp_kg_url = config.wordpress_kg_url
+wp_kg_username = config.wordpress_kg_username
+wp_kg_password = config.wordpress_kg_password
+wp_kg_author_id = config.wordpress_kg_author_id
+wp_kg_categories = config.wordpress_kg_categories
+
 
 chat_ru_username = config.chat_ru_username
 chat_kg_username = config.chat_kg_username
@@ -36,7 +42,7 @@ def publish_post_to_wordpress_ru(title, content, image_path=None):
     session_cookie = login_and_save_cookies()
 
     if session_cookie:
-        wordpress_credentials = wordpress_ru_username + ":" + wordpress_ru_password
+        wordpress_credentials = wp_ru_username + ":" + wp_ru_password
         wordpress_token = base64.b64encode(wordpress_credentials.encode())
 
         headers = {
@@ -48,6 +54,8 @@ def publish_post_to_wordpress_ru(title, content, image_path=None):
             "title": title,
             "content": content,
             "status": "publish",
+            "author": wp_ru_author_id,
+            "categories": wp_ru_categories,
         }
 
         session = requests.Session()
@@ -56,11 +64,11 @@ def publish_post_to_wordpress_ru(title, content, image_path=None):
 
         if image_path:
             image_id = upload_image_to_wordpress(
-                image_path, session, f"{wordpress_ru_url}/wp/v2/media"
+                image_path, session, f"{wp_ru_url}/wp/v2/media"
             )
             data["featured_media"] = image_id
 
-        response = session.post(f"{wordpress_ru_url}/wp/v2/posts", json=data)
+        response = session.post(f"{wp_ru_url}/wp/v2/posts", json=data)
 
         print(response.status_code)
         if response.status_code == 201:
@@ -74,7 +82,7 @@ def publish_post_to_wordpress_ru(title, content, image_path=None):
 
 
 def publish_post_to_wordpress_kg(title, content, image_path=None):
-    wordpress_credentials = wordpress_kg_username + ":" + wordpress_kg_password
+    wordpress_credentials = wp_kg_username + ":" + wp_kg_password
     wordpress_token = base64.b64encode(wordpress_credentials.encode())
 
     headers = {
@@ -86,6 +94,8 @@ def publish_post_to_wordpress_kg(title, content, image_path=None):
         "title": title,
         "content": content,
         "status": "publish",
+        "author": wp_kg_author_id,
+        "categories": wp_kg_categories,
     }
 
     session = requests.Session()
@@ -93,11 +103,11 @@ def publish_post_to_wordpress_kg(title, content, image_path=None):
 
     if image_path:
         image_id = upload_image_to_wordpress(
-            image_path, session, f"{wordpress_kg_url}/wp/v2/media"
+            image_path, session, f"{wp_kg_url}/wp/v2/media"
         )
         data["featured_media"] = image_id
 
-    response = session.post(f"{wordpress_kg_url}/wp/v2/posts", json=data)
+    response = session.post(f"{wp_kg_url}/wp/v2/posts", json=data)
 
     print(response.status_code)
     if response.status_code == 201:
@@ -143,6 +153,7 @@ async def channel_text_message_handler(client: Client, message: Message):
     if chat_username == chat_kg_username:
         publish_post_to_wordpress_kg(title, content)
     elif chat_username == chat_ru_username:
+        pass
         publish_post_to_wordpress_ru(title, content)
 
 

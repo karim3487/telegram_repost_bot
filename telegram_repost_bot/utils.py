@@ -52,7 +52,7 @@ def parse_post(message: Message) -> (str, str):
     start = entities[0].offset
     end = start + entities[0].length
     title = text[start:end].strip()
-    content = content.removeprefix(title).strip()
+    content = content[len(title) + 1 :]
 
     return title, content
 
