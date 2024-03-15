@@ -2,8 +2,11 @@ import logging
 import re
 from typing import List, Union
 
+from pyrogram import Client
 from pyrogram.enums import MessageEntityType
 from pyrogram.types import Message, MessageEntity
+
+from telegram_repost_bot.config_reader import config
 
 utils_logger = logging.getLogger(__name__)
 utils_logger.setLevel(logging.INFO)
@@ -55,9 +58,9 @@ def parse_post(message: Message) -> Union[tuple[str, str], None]:
     Returns:
         Union[tuple[str, str], None]: A tuple containing the title and content of the post, or None if parsing fails.
     """
+    text = str(message.text) or str(message.caption)
     try:
         entities = message.entities or message.caption_entities
-        text = str(message.text) or str(message.caption)
         content = replace_links(text, entities)
         content = remove_hashtags(content)
         start = entities[0].offset
@@ -69,9 +72,13 @@ def parse_post(message: Message) -> Union[tuple[str, str], None]:
 
         return title, content
     except TypeError as e:
-        utils_logger.error(f"TypeError occurred: {e}", exc_info=True)
+        error_message = f"TypeError occurred: {e}. Message='{text}'."
+        utils_logger.error(error_message, exc_info=True)
+        raise TypeError(error_message)
     except IndexError as e:
-        utils_logger.error(f"IndexError occurred: {e}", exc_info=True)
+        error_message = f"IndexError occurred: {e}. Message='{text}'."
+        utils_logger.error(error_message, exc_info=True)
+        raise ValueError(error_message)
 
 
 def is_post(text: str, hashtag_ru: str, hashtag_kg: str) -> bool:
@@ -89,3 +96,7 @@ def is_post(text: str, hashtag_ru: str, hashtag_kg: str) -> bool:
     has_hashtags = hashtag_ru in text or hashtag_kg in text
     utils_logger.info(f"Post has hashtags: {has_hashtags}")
     return has_hashtags
+
+
+async def send_telegram_message(app: Client, message: str) -> None:
+    await app.send_message(config.admin_username, f"**Error occurred**: {message}")

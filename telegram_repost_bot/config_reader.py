@@ -6,6 +6,7 @@ from pydantic import BaseSettings
 class Settings(BaseSettings):
     api_id: int
     api_hash: str
+    admin_username: str
     wordpress_ru_hidden_url: str
     wordpress_ru_url: str = "https://kloop.kg/wp-json"
     wordpress_ru_username: str

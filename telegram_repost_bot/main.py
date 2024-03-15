@@ -3,11 +3,12 @@ import logging
 import sys
 
 import requests
+from requests.exceptions import RequestException
 from pyrogram import Client, filters
 from pyrogram.types import Message
 
 from config_reader import config
-from telegram_repost_bot.utils import parse_post, is_post
+from telegram_repost_bot.utils import parse_post, is_post, send_telegram_message
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -54,54 +55,57 @@ def visit_hidden_url_and_get_cookies():
             logger.info(f"Visiting hidden URL")
             return session.cookies.get_dict()
         else:
-            logger.error("Failed to visit the hidden URL.")
-            return None
+            error_message = f"Error visiting hidden URL: {response}"
+            logger.error(error_message)
+            raise RequestException(error_message)
 
 
 def publish_post_to_wordpress_ru(title, content, image_path=None):
-    session_cookie = visit_hidden_url_and_get_cookies()
+    try:
+        session_cookie = visit_hidden_url_and_get_cookies()
+    except RequestException as e:
+        raise RequestException(f"{e}")
 
-    if session_cookie:
-        wordpress_credentials = wp_ru_username + ":" + wp_ru_password
-        wordpress_token = base64.b64encode(wordpress_credentials.encode())
+    wordpress_credentials = wp_ru_username + ":" + wp_ru_password
+    wordpress_token = base64.b64encode(wordpress_credentials.encode())
 
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:122.0) Gecko/20100101 Firefox/122.0",
-            "Authorization": "Basic " + wordpress_token.decode("utf-8"),
-        }
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:122.0) Gecko/20100101 Firefox/122.0",
+        "Authorization": "Basic " + wordpress_token.decode("utf-8"),
+    }
 
-        data = {
-            "title": title,
-            "content": content,
-            "status": "publish",
-            "author": wp_ru_author_id,
-            "categories": wp_ru_categories,
-        }
+    data = {
+        "title": title,
+        "content": content,
+        "status": "publish",
+        "author": wp_ru_author_id,
+        "categories": wp_ru_categories,
+    }
 
-        session = requests.Session()
-        session.headers.update(headers)
-        session.cookies.update(session_cookie)
+    session = requests.Session()
+    session.headers.update(headers)
+    session.cookies.update(session_cookie)
 
-        if image_path:
-            image_id = upload_image_to_wordpress(
-                image_path, session, f"{wp_ru_url}/wp/v2/media"
-            )
-            data["featured_media"] = image_id
-
-        response = session.post(f"{wp_ru_url}/wp/v2/posts", json=data)
-
-        logger.info(
-            f"Publishing post to WordPress RU - Status code: {response.status_code}"
+    if image_path:
+        image_id = upload_image_to_wordpress(
+            image_path, session, f"{wp_ru_url}/wp/v2/media"
         )
+        data["featured_media"] = image_id
 
-        if response.status_code == 201:
-            logging.info("The news was successfully published!")
-        else:
-            text = response.text
-            text.encode("utf-8", errors="")
-            logger.error(f"Error when publishing news:{text[:200]}", exc_info=True)
+    response = session.post(f"{wp_ru_url}/wp/v2/posts", json=data)
+
+    logger.info(
+        f"Publishing post to WordPress RU - Status code: {response.status_code}"
+    )
+
+    if response.status_code == 201:
+        logger.info("The news was successfully published!")
     else:
-        logger.error("Failed to obtain session cookie.", exc_info=True)
+        text = response.text
+        text.encode("utf-8", errors="")
+        error_text = f"Error when publishing news:{text[:200]}"
+        logger.error(error_text, exc_info=True)
+        raise RequestException(error_text, response)
 
 
 def publish_post_to_wordpress_kg(title, content, image_path=None):
@@ -140,7 +144,9 @@ def publish_post_to_wordpress_kg(title, content, image_path=None):
     else:
         text = response.text
         text.encode("utf-8", errors="")
-        logger.error(f"Error when publishing news:{text[:200]}", exc_info=True)
+        error_text = f"Error when publishing news:{text[:200]}"
+        logger.error(error_text, exc_info=True)
+        raise RequestException(error_text, response)
 
 
 def upload_image_to_wordpress(image_path, session, url):
@@ -153,8 +159,9 @@ def upload_image_to_wordpress(image_path, session, url):
     else:
         text = response.text
         text.encode("utf-8", errors="")
-        logger.error(f"Error when publishing image:{text[:200]}", exc_info=True)
-        return None
+        error_message = f"Error when publishing image:{text[:200]}"
+        logger.error(error_message, exc_info=True)
+        return RequestException(error_message)
 
 
 app = Client("../telegram_sessions/net3487", api_id, api_hash)
@@ -179,15 +186,22 @@ async def channel_text_message_handler(client: Client, message: Message):
         )
         return
 
-    result = parse_post(message)
-    if result is None:
-        return
+    try:
+        result = parse_post(message)
+        if result is None:
+            return
 
-    title, content = result
-    if chat_username == chat_kg_username:
-        publish_post_to_wordpress_kg(title, content)
-    elif chat_username == chat_ru_username:
-        publish_post_to_wordpress_ru(title, content)
+        title, content = result
+        if chat_username == chat_kg_username:
+            publish_post_to_wordpress_kg(title, content)
+        elif chat_username == chat_ru_username:
+            publish_post_to_wordpress_ru(title, content)
+    except RequestException as e:
+        await send_telegram_message(app, str(e))
+    except TypeError as e:
+        await send_telegram_message(app, str(e))
+    except ValueError as e:
+        await send_telegram_message(app, str(e))
     logger.info(f"Processed text message from {chat_username}. Message: {message}")
 
 
@@ -210,16 +224,23 @@ async def channel_media_message_handler(client: Client, message: Message):
         )
         return
 
-    result = parse_post(message)
-    if result is None:
-        return
+    try:
+        result = parse_post(message)
+        image_path = await app.download_media(message.photo.file_id)
+        if result is None:
+            return
 
-    title, content = result
-    image_path = await app.download_media(message.photo.file_id)
-    if chat_username == chat_kg_username:
-        publish_post_to_wordpress_kg(title, content, image_path)
-    elif chat_username == chat_ru_username:
-        publish_post_to_wordpress_ru(title, content, image_path)
+        title, content = result
+        if chat_username == chat_kg_username:
+            publish_post_to_wordpress_kg(title, content, image_path)
+        elif chat_username == chat_ru_username:
+            publish_post_to_wordpress_ru(title, content, image_path)
+    except RequestException as e:
+        await send_telegram_message(app, str(e))
+    except TypeError as e:
+        await send_telegram_message(app, str(e))
+    except ValueError as e:
+        await send_telegram_message(app, str(e))
     logger.info(f"Processed media message from {chat_username}. Message: {message}")
 
 
