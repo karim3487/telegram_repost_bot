@@ -1,4 +1,7 @@
 import base64
+import logging
+import sys
+
 import requests
 from pyrogram import Client, filters
 from pyrogram.types import Message
@@ -6,8 +9,24 @@ from pyrogram.types import Message
 from config_reader import config
 from telegram_repost_bot.utils import parse_post, is_post
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+handler = logging.FileHandler(f"{__name__}.log")
+formatter = logging.Formatter("%(name)s %(asctime)s %(levelname)s %(message)s")
+handler.setFormatter(formatter)
+
+console_handler = logging.StreamHandler(sys.stdout)
+console_formatter = logging.Formatter("%(name)s %(asctime)s %(levelname)s %(message)s")
+console_handler.setFormatter(console_formatter)
+
+logger.addHandler(handler)
+logger.addHandler(console_handler)
+
 api_id = config.api_id
 api_hash = config.api_hash
+
+wp_ru_hidden_url = config.wordpress_ru_hidden_url
 wp_ru_url = config.wordpress_ru_url
 wp_ru_username = config.wordpress_ru_username
 wp_ru_password = config.wordpress_ru_password
@@ -28,18 +47,19 @@ hashtag_ru = config.hashtag_ru
 hashtag_kg = config.hashtag_kg
 
 
-def login_and_save_cookies():
+def visit_hidden_url_and_get_cookies():
     with requests.Session() as session:
-        response = session.get("https://kloop.kg/greenboat/", allow_redirects=True)
+        response = session.get(wp_ru_hidden_url, allow_redirects=True)
         if response.ok:
+            logger.info(f"Visiting hidden URL")
             return session.cookies.get_dict()
         else:
-            print("Failed to visit the hidden URL.")
+            logger.error("Failed to visit the hidden URL.")
             return None
 
 
 def publish_post_to_wordpress_ru(title, content, image_path=None):
-    session_cookie = login_and_save_cookies()
+    session_cookie = visit_hidden_url_and_get_cookies()
 
     if session_cookie:
         wordpress_credentials = wp_ru_username + ":" + wp_ru_password
@@ -70,15 +90,18 @@ def publish_post_to_wordpress_ru(title, content, image_path=None):
 
         response = session.post(f"{wp_ru_url}/wp/v2/posts", json=data)
 
-        print(response.status_code)
+        logger.info(
+            f"Publishing post to WordPress RU - Status code: {response.status_code}"
+        )
+
         if response.status_code == 201:
-            print("Новость успешно опубликована!")
+            logging.info("The news was successfully published!")
         else:
             text = response.text
             text.encode("utf-8", errors="")
-            print("Ошибка при публикации новости:", text[:200])
+            logger.error(f"Error when publishing news:{text[:200]}", exc_info=True)
     else:
-        print("Failed to obtain session cookie.")
+        logger.error("Failed to obtain session cookie.", exc_info=True)
 
 
 def publish_post_to_wordpress_kg(title, content, image_path=None):
@@ -109,13 +132,15 @@ def publish_post_to_wordpress_kg(title, content, image_path=None):
 
     response = session.post(f"{wp_kg_url}/wp/v2/posts", json=data)
 
-    print(response.status_code)
+    logger.info(
+        f"Publishing post to WordPress KG - Status code: {response.status_code}"
+    )
     if response.status_code == 201:
-        print("Новость успешно опубликована!")
+        logger.info("The news was successfully published!")
     else:
         text = response.text
         text.encode("utf-8", errors="")
-        print("Ошибка при публикации новости:", text[:200])
+        logger.error(f"Error when publishing news:{text[:200]}", exc_info=True)
 
 
 def upload_image_to_wordpress(image_path, session, url):
@@ -123,10 +148,12 @@ def upload_image_to_wordpress(image_path, session, url):
     response = session.post(url, files=files)
     if response.status_code == 201:
         media_data = response.json()
+        logger.info(f"Publishing image to WordPress: {media_data}")
         return media_data["id"]
     else:
-        response_json = response.json()
-        print("Ошибка при загрузке изображения:", response_json)
+        text = response.text
+        text.encode("utf-8", errors="")
+        logger.error(f"Error when publishing image:{text[:200]}", exc_info=True)
         return None
 
 
@@ -144,17 +171,24 @@ async def channel_text_message_handler(client: Client, message: Message):
     if not message.text:
         return
 
+    chat_username = message.chat.username
     text_post = message.text
     if not is_post(text_post, hashtag_ru, hashtag_kg):
+        logger.info(
+            f"Processed text message from {chat_username}. It's not a post. Message: {message}"
+        )
         return
 
-    chat_username = message.chat.username
-    title, content = parse_post(message)
+    result = parse_post(message)
+    if result is None:
+        return
+
+    title, content = result
     if chat_username == chat_kg_username:
         publish_post_to_wordpress_kg(title, content)
     elif chat_username == chat_ru_username:
-        pass
         publish_post_to_wordpress_ru(title, content)
+    logger.info(f"Processed text message from {chat_username}. Message: {message}")
 
 
 @app.on_message(filters.chat([chat_ru_username, chat_kg_username]) & filters.media)
@@ -168,17 +202,25 @@ async def channel_media_message_handler(client: Client, message: Message):
     if not message.caption:
         return
 
+    chat_username = message.chat.username
     text_post = message.caption
     if not is_post(text_post, hashtag_ru, hashtag_kg):
+        logger.info(
+            f"Processed media message from {chat_username}. It's not a post. Message: {message}"
+        )
         return
 
-    chat_username = message.chat.username
-    title, content = parse_post(message)
+    result = parse_post(message)
+    if result is None:
+        return
+
+    title, content = result
     image_path = await app.download_media(message.photo.file_id)
     if chat_username == chat_kg_username:
         publish_post_to_wordpress_kg(title, content, image_path)
     elif chat_username == chat_ru_username:
         publish_post_to_wordpress_ru(title, content, image_path)
+    logger.info(f"Processed media message from {chat_username}. Message: {message}")
 
 
 app.run()

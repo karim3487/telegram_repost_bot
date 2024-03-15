@@ -21,4 +21,5 @@ downloads/
 *.session
 *.session-journal
 
-
+# Log
+*.log
