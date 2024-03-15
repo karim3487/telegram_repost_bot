@@ -46,13 +46,13 @@ def parse_post(message: Message) -> (str, str):
         tuple: A tuple containing the title and content of the post.
     """
     entities = message.entities or message.caption_entities
-    text = message.text or message.caption
+    text = str(message.text) or str(message.caption)
     content = replace_links(text, entities)
     content = remove_hashtags(content)
     start = entities[0].offset
     end = start + entities[0].length
     title = text[start:end].strip()
-    content = content[len(title) + 1 :]
+    content = content.split("\n", 1)[1].strip()
 
     return title, content
 

@@ -12,14 +12,14 @@ class TestParsePost(unittest.TestCase):
     def test_parse_post(self):
         message = Message(
             id=1,
-            text=Str("Заголовок\n\nЭтот пост с текстовой ссылкой\n\n#новости"),
+            text=Str("💉Заголовок\n\nЭтот пост с текстовой ссылкой\n\n#новости"),
             caption=None,
             entities=[
-                MessageEntity(type=met.BOLD, offset=0, length=9),
+                MessageEntity(type=met.BOLD, offset=1, length=9),
                 MessageEntity(
-                    type=met.TEXT_LINK, offset=23, length=17, url="https://example.com"
+                    type=met.TEXT_LINK, offset=24, length=17, url="https://example.com"
                 ),
-                MessageEntity(type=met.HASHTAG, offset=42, length=9),
+                MessageEntity(type=met.HASHTAG, offset=43, length=9),
             ],
         )
         expected_title = "Заголовок"
