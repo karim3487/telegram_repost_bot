@@ -23,3 +23,6 @@ downloads/
 
 # Log
 *.log
+
+# Deploy snippets
+deploy.md

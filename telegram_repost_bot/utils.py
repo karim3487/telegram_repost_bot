@@ -29,18 +29,22 @@ def replace_links(text: str, entities: List[MessageEntity]) -> str:
     Returns:
         str: The text with replaced links in HTML format.
     """
-    content = text
+    offset_correction = 0
     for entity in entities:
-        start = entity.offset
+        start = entity.offset + offset_correction
         end = start + entity.length
         if entity.type == MessageEntityType.URL:
             url = text[start:end]
-            content = content.replace(url, f'<a href="{url}">{url}</a>')
+            html_url = f'<a href="{url}">{url}</a>'
+            text = text[:start] + html_url + text[end:]
+            offset_correction += len(html_url) - len(url)
         elif entity.type == MessageEntityType.TEXT_LINK:
             url = entity.url
             text_link = text[start:end]
-            content = content.replace(text_link, f'<a href="{url}">{text_link}</a>')
-    return content
+            html_url = f'<a href="{url}">{text_link}</a>'
+            text = text[:start] + html_url + text[end:]
+            offset_correction += len(html_url) - len(text_link)
+    return text
 
 
 def remove_hashtags(text: str) -> str:
@@ -58,14 +62,13 @@ def parse_post(message: Message) -> Union[tuple[str, str], None]:
     Returns:
         Union[tuple[str, str], None]: A tuple containing the title and content of the post, or None if parsing fails.
     """
-    text = str(message.text) or str(message.caption)
+    text = message.text or message.caption
+    text = str(text)
     try:
         entities = message.entities or message.caption_entities
+        title = text.split("\n", 1)[0].strip()
         content = replace_links(text, entities)
         content = remove_hashtags(content)
-        start = entities[0].offset
-        end = start + entities[0].length
-        title = text[start:end].strip()
         content = content.split("\n", 1)[1].strip()
 
         utils_logger.info(f"Parsed post: Title='{title}', Content='{content}'")

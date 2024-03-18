@@ -198,10 +198,19 @@ async def channel_text_message_handler(client: Client, message: Message):
             publish_post_to_wordpress_ru(title, content)
     except RequestException as e:
         await send_telegram_message(app, str(e))
+        await app.forward_messages(
+            config.admin_username, message.sender_chat.id, message.id
+        )
     except TypeError as e:
         await send_telegram_message(app, str(e))
+        await app.forward_messages(
+            config.admin_username, message.sender_chat.id, message.id
+        )
     except ValueError as e:
         await send_telegram_message(app, str(e))
+        await app.forward_messages(
+            config.admin_username, message.sender_chat.id, message.id
+        )
     logger.info(f"Processed text message from {chat_username}. Message: {message}")
 
 
@@ -237,10 +246,19 @@ async def channel_media_message_handler(client: Client, message: Message):
             publish_post_to_wordpress_ru(title, content, image_path)
     except RequestException as e:
         await send_telegram_message(app, str(e))
+        await app.forward_messages(
+            config.admin_username, message.sender_chat.id, message.id
+        )
     except TypeError as e:
         await send_telegram_message(app, str(e))
+        await app.forward_messages(
+            config.admin_username, message.sender_chat.id, message.id
+        )
     except ValueError as e:
         await send_telegram_message(app, str(e))
+        await app.forward_messages(
+            config.admin_username, message.sender_chat.id, message.id
+        )
     logger.info(f"Processed media message from {chat_username}. Message: {message}")
 
 
