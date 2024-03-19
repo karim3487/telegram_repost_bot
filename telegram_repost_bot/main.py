@@ -11,7 +11,7 @@ from config_reader import config
 from telegram_repost_bot.utils import parse_post, is_post, send_telegram_message
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 handler = logging.FileHandler(f"{__name__}.log")
 formatter = logging.Formatter("%(name)s %(asctime)s %(levelname)s %(message)s")
@@ -181,7 +181,7 @@ async def channel_text_message_handler(client: Client, message: Message):
     chat_username = message.chat.username
     text_post = message.text
     if not is_post(text_post, hashtag_ru, hashtag_kg):
-        logger.info(
+        logger.debug(
             f"Processed text message from {chat_username}. It's not a post. Message: {message}"
         )
         return
@@ -228,7 +228,7 @@ async def channel_media_message_handler(client: Client, message: Message):
     chat_username = message.chat.username
     text_post = message.caption
     if not is_post(text_post, hashtag_ru, hashtag_kg):
-        logger.info(
+        logger.debug(
             f"Processed media message from {chat_username}. It's not a post. Message: {message}"
         )
         return

@@ -1,5 +1,6 @@
 import logging
 import re
+import sys
 from typing import List, Union
 
 from pyrogram import Client
@@ -13,9 +14,14 @@ utils_logger.setLevel(logging.INFO)
 
 utils_handler = logging.FileHandler(f"{__name__}.log")
 utils_formatter = logging.Formatter("%(name)s %(asctime)s %(levelname)s %(message)s")
-
 utils_handler.setFormatter(utils_formatter)
+
+console_handler = logging.StreamHandler(sys.stdout)
+console_formatter = logging.Formatter("%(name)s %(asctime)s %(levelname)s %(message)s")
+console_handler.setFormatter(console_formatter)
+
 utils_logger.addHandler(utils_handler)
+utils_logger.addHandler(console_handler)
 
 
 def replace_links(text: str, entities: List[MessageEntity]) -> str:

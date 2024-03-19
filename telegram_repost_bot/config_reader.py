@@ -14,8 +14,8 @@ class Settings(BaseSettings):
     wordpress_ru_author_id: str
     wordpress_ru_categories: List[int] = [
         43,  # ID of category "Новости"
-        # 24127046,  # ID of category "Лента"
-        # 24127043,  # ID of category "Заметки"
+        24127046,  # ID of category "Лента"
+        24127043,  # ID of category "Заметки"
     ]
     wordpress_kg_url: str = "https://ky.kloop.asia/wp-json"
     wordpress_kg_username: str
