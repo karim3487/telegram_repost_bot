@@ -1,27 +1,13 @@
-import logging
-import sys
-
 from requests.exceptions import RequestException
 from pyrogram import Client, filters
 from pyrogram.types import Message
 
 from config_reader import config
+from telegram_repost_bot.logging_config import setup_logger
 from telegram_repost_bot.utils import parse_post, is_post, send_telegram_message
 from wp_api import wordpress_ru_api, wordpress_kg_api
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-
-handler = logging.FileHandler(f"{__name__}.log")
-formatter = logging.Formatter("%(name)s %(asctime)s %(levelname)s %(message)s")
-handler.setFormatter(formatter)
-
-console_handler = logging.StreamHandler(sys.stdout)
-console_formatter = logging.Formatter("%(name)s %(asctime)s %(levelname)s %(message)s")
-console_handler.setFormatter(console_formatter)
-
-logger.addHandler(handler)
-logger.addHandler(console_handler)
+logger = setup_logger(__name__)
 
 app = Client("../telegram_sessions/net3487", config.api_id, config.api_hash)
 

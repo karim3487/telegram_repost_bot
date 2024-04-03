@@ -1,27 +1,26 @@
-import logging
 import re
-import sys
 from typing import List, Union
 
+import emoji
 from pyrogram import Client
 from pyrogram.enums import MessageEntityType
 from pyrogram.types import Message, MessageEntity
 
 from telegram_repost_bot.config_reader import config
+from telegram_repost_bot.logging_config import setup_logger
 
-utils_logger = logging.getLogger(__name__)
-utils_logger.setLevel(logging.INFO)
+logger = setup_logger(__name__)
 
-utils_handler = logging.FileHandler(f"{__name__}.log")
-utils_formatter = logging.Formatter("%(name)s %(asctime)s %(levelname)s %(message)s")
-utils_handler.setFormatter(utils_formatter)
 
-console_handler = logging.StreamHandler(sys.stdout)
-console_formatter = logging.Formatter("%(name)s %(asctime)s %(levelname)s %(message)s")
-console_handler.setFormatter(console_formatter)
+def count_emojis(text):
+    emoji_count = 0
 
-utils_logger.addHandler(utils_handler)
-utils_logger.addHandler(console_handler)
+    # Проверяем каждый символ в строке на наличие смайликов
+    for char in text:
+        if char in emoji.EMOJI_DATA:
+            emoji_count += 1
+
+    return emoji_count
 
 
 def replace_links(text: str, entities: List[MessageEntity]) -> str:
@@ -35,21 +34,24 @@ def replace_links(text: str, entities: List[MessageEntity]) -> str:
     Returns:
         str: The text with replaced links in HTML format.
     """
-    offset_correction = 0
+    offset_correction = 0  # Offset correction
     for entity in entities:
-        start = entity.offset + offset_correction
-        end = start + entity.length
+        start = entity.offset + offset_correction  # Starting position
+        end = start + entity.length  # Ending position
+        emojis_count = count_emojis(text[:start])  # Count of emojis
+        text_segment = text[start - emojis_count : end - emojis_count]  # Text segment
+        text_before = text[: start - emojis_count]  # Text before new link
+        text_after = text[end - emojis_count :]  # Text after new link
         if entity.type == MessageEntityType.URL:
-            url = text[start:end]
-            html_url = f'<a href="{url}">{url}</a>'
-            text = text[:start] + html_url + text[end:]
-            offset_correction += len(html_url) - len(url)
+            link_text = f'<a href="{text_segment}">{text_segment}</a>'
         elif entity.type == MessageEntityType.TEXT_LINK:
-            url = entity.url
-            text_link = text[start:end]
-            html_url = f'<a href="{url}">{text_link}</a>'
-            text = text[:start] + html_url + text[end:]
-            offset_correction += len(html_url) - len(text_link)
+            link_text = f'<a href="{entity.url}">{text_segment}</a>'
+        else:
+            continue
+
+        text = f"{text_before}{link_text}{text_after}"
+        offset_correction += len(link_text) - len(text_segment)
+
     return text
 
 

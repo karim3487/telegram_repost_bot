@@ -1,26 +1,13 @@
 import base64
-import logging
-import sys
 from typing import List
 
 import requests
 from requests import RequestException
 
 from telegram_repost_bot.config_reader import config
+from telegram_repost_bot.logging_config import setup_logger
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-
-file_handler = logging.FileHandler(f"{__name__}.log")
-file_formatter = logging.Formatter("%(name)s %(asctime)s %(levelname)s %(message)s")
-file_handler.setFormatter(file_formatter)
-
-console_handler = logging.StreamHandler(sys.stdout)
-console_formatter = logging.Formatter("%(name)s %(asctime)s %(levelname)s %(message)s")
-console_handler.setFormatter(console_formatter)
-
-logger.addHandler(file_handler)
-logger.addHandler(console_handler)
+logger = setup_logger(__name__)
 
 
 class BaseApi:
