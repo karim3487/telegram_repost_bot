@@ -75,7 +75,7 @@ def parse_post(message: Message) -> Union[tuple[str, str], None]:
     try:
         entities = message.entities or message.caption_entities
         title = text.split("\n", 1)[0].strip()
-        content = replace_links(text, entities)
+        content = replace_links(text.removeprefix(title), entities)
         content = remove_hashtags(content)
         content = content.split("\n", 1)[1].strip()
 

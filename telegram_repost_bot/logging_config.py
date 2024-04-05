@@ -2,11 +2,11 @@ import logging
 import sys
 
 
-def setup_logger(name, level=logging.INFO):
+def setup_logger(name, level=logging.DEBUG):
     logger = logging.getLogger(name)
     logger.setLevel(level)
 
-    file_handler = logging.FileHandler(f"{__name__}.log")
+    file_handler = logging.FileHandler(f"{name}.log")
     formatter = logging.Formatter("%(name)s %(asctime)s %(levelname)s %(message)s")
     file_handler.setFormatter(formatter)
 

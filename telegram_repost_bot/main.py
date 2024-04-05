@@ -109,4 +109,10 @@ async def channel_media_message_handler(client: Client, message: Message):
     logger.info(f"Processed media message from {chat_username}. Message: {message}")
 
 
+@app.on_message(filters.chat([config.chat_ru_username, config.chat_kg_username]))
+async def handle_messages_from_chats(client: Client, message: Message):
+    chat_username = message.chat.username
+    logger.debug(f"New message in chat {chat_username}. Message: {message}")
+
+
 app.run()
