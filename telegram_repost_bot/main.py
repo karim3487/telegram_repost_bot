@@ -12,6 +12,10 @@ logger = setup_logger(__name__)
 app = Client("../telegram_sessions/net3487", config.api_id, config.api_hash)
 
 
+def log_new_message(chat_username: str, message: Message) -> None:
+    logger.debug(f"New message in chat {chat_username}. Message: {message}")
+
+
 @app.on_message(
     filters.chat([config.chat_ru_username, config.chat_kg_username]) & ~filters.photo
 )
@@ -21,10 +25,12 @@ async def channel_text_message_handler(client: Client, message: Message):
     :param message: Message object
     :return:
     """
+    chat_username = message.chat.username
+    log_new_message(chat_username, message)
+
     if not message.text:
         return
 
-    chat_username = message.chat.username
     text_post = message.text
     if not is_post(text_post, config.hashtag_ru, config.hashtag_kg):
         logger.debug(
@@ -69,10 +75,12 @@ async def channel_media_message_handler(client: Client, message: Message):
     :param message: Message object
     :return:
     """
+    chat_username = message.chat.username
+    log_new_message(chat_username, message)
+
     if not message.caption:
         return
 
-    chat_username = message.chat.username
     text_post = message.caption
     if not is_post(text_post, config.hashtag_ru, config.hashtag_kg):
         logger.debug(
@@ -107,12 +115,6 @@ async def channel_media_message_handler(client: Client, message: Message):
             config.admin_username, message.sender_chat.id, message.id
         )
     logger.info(f"Processed media message from {chat_username}. Message: {message}")
-
-
-@app.on_message(filters.chat([config.chat_ru_username, config.chat_kg_username]))
-async def handle_messages_from_chats(client: Client, message: Message):
-    chat_username = message.chat.username
-    logger.debug(f"New message in chat {chat_username}. Message: {message}")
 
 
 app.run()
