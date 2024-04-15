@@ -23,7 +23,7 @@ def count_emojis(text):
     return emoji_count
 
 
-def replace_links(text: str, entities: List[MessageEntity]) -> str:
+def replace_links(text: str, entities: List[MessageEntity], titile: str) -> str:
     """
     Replace URLs and text links in the text with HTML links.
 
@@ -38,7 +38,7 @@ def replace_links(text: str, entities: List[MessageEntity]) -> str:
     for entity in entities:
         start = entity.offset + offset_correction  # Starting position
         end = start + entity.length  # Ending position
-        emojis_count = count_emojis(text[:start])  # Count of emojis
+        emojis_count = count_emojis(text[len(titile):start])  # Count of emojis
         text_segment = text[start - emojis_count : end - emojis_count]  # Text segment
         text_before = text[: start - emojis_count]  # Text before new link
         text_after = text[end - emojis_count :]  # Text after new link
@@ -75,7 +75,7 @@ def parse_post(message: Message) -> Union[tuple[str, str], None]:
     try:
         entities = message.entities or message.caption_entities
         title = text.split("\n", 1)[0].strip()
-        content = replace_links(text.removeprefix(title), entities)
+        content = replace_links(text, entities, title)
         content = remove_hashtags(content)
         content = content.split("\n", 1)[1].strip()
 

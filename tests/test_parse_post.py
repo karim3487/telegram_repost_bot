@@ -22,7 +22,7 @@ class TestParsePost(unittest.TestCase):
                 MessageEntity(type=met.HASHTAG, offset=43, length=9),
             ],
         )
-        expected_title = "Заголовок"
+        expected_title = "💉Заголовок"
         expected_content = (
             'Этот пост с <a href="https://example.com">текстовой ссылкой</a>'
         )
