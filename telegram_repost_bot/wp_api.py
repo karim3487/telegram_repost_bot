@@ -33,13 +33,12 @@ class BaseApi:
             data["featured_media"] = image_id
         response = session.post(f"{self._url}/wp/v2/posts", json=data)
         logger.info(
-            f"Publishing post to {self.__class__.__name__} - Status code: {response.status_code}"
+            f"Publishing post to {self.__class__.__name__} - Status code: {response.status_code}. Response: {response.json()}"
         )
         if response.status_code == 201:
-            logger.info("The news was successfully published!")
+            logger.info(f"The news was successfully published!: {response.json()}")
         else:
-            text = response.text
-            text.encode("utf-8", errors="")
+            text = response.text.encode(errors="ignore").decode()
             error_text = f"Error when publishing news:{text[:200]}"
             logger.error(error_text, exc_info=True)
             raise RequestException(error_text, response)
@@ -83,11 +82,10 @@ class BaseApi:
             logger.info(f"Publishing image to {self.__class__.__name__}: {media_data}")
             return media_data["id"]
         else:
-            text = response.text
-            text.encode("utf-8", errors="")
-            error_message = f"Error when publishing image:{text[:200]}"
-            logger.error(error_message, exc_info=True)
-            raise RequestException(error_message)
+            text = response.text.encode(errors="ignore").decode()
+            error_text = f"Error when publishing news:{text[:200]}"
+            logger.error(error_text, exc_info=True)
+            raise RequestException(error_text)
 
 
 class WpRuApi(BaseApi):

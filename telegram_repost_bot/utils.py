@@ -1,3 +1,4 @@
+import json
 import re
 from typing import List, Union
 
@@ -38,7 +39,7 @@ def replace_links(text: str, entities: List[MessageEntity], titile: str) -> str:
     for entity in entities:
         start = entity.offset + offset_correction  # Starting position
         end = start + entity.length  # Ending position
-        emojis_count = count_emojis(text[len(titile):start])  # Count of emojis
+        emojis_count = count_emojis(text[len(titile) : start])  # Count of emojis
         text_segment = text[start - emojis_count : end - emojis_count]  # Text segment
         text_before = text[: start - emojis_count]  # Text before new link
         text_after = text[end - emojis_count :]  # Text after new link
@@ -79,7 +80,10 @@ def parse_post(message: Message) -> Union[tuple[str, str], None]:
         content = remove_hashtags(content)
         content = content.split("\n", 1)[1].strip()
 
-        logger.info(f"Parsed post: Title='{title}', Content='{content}'")
+        content_with_newline_replaced = content.replace("\n", "\\n")
+        logger.info(
+            f"Parsed post: Title='{title}', Content='{content_with_newline_replaced}', Entities='{entities}'"
+        )
 
         return title, content
     except TypeError as e:
@@ -111,3 +115,25 @@ def is_post(text: str, hashtag_ru: str, hashtag_kg: str) -> bool:
 
 async def send_telegram_message(app: Client, message: str) -> None:
     await app.send_message(config.admin_username, f"**Error occurred**: {message}")
+
+
+def custom_json_serializer(obj):
+    try:
+        return json.dumps(obj)
+    except TypeError:
+        return str(obj)
+
+
+def clean_message(message: Message) -> dict:
+    c_msg = {
+        "id": message.id,
+        "username": message.chat.username,
+        "text": message.text,
+        "caption": message.caption,
+        "date": message.date.strftime("%d.%m.%Y, %H:%M:%S"),
+        "media": message.media,
+        "caption_entities": message.caption_entities,
+        "entities": message.entities,
+        "url": message.link,
+    }
+    return c_msg
