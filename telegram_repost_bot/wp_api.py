@@ -38,8 +38,7 @@ class BaseApi:
         if response.status_code == 201:
             logger.info(f"The news was successfully published!: {response.json()}")
         else:
-            text = response.text.encode(errors="ignore").decode()
-            error_text = f"Error when publishing news:{text[:200]}"
+            error_text = f"Error when publishing news:{response.json()}"
             logger.error(error_text, exc_info=True)
             raise RequestException(error_text, response)
 
@@ -82,8 +81,7 @@ class BaseApi:
             logger.info(f"Publishing image to {self.__class__.__name__}: {media_data}")
             return media_data["id"]
         else:
-            text = response.text.encode(errors="ignore").decode()
-            error_text = f"Error when publishing news:{text[:200]}"
+            error_text = f"Error when publishing news:{response.json()}"
             logger.error(error_text, exc_info=True)
             raise RequestException(error_text)
 
@@ -108,7 +106,7 @@ class WpRuApi(BaseApi):
                 logger.info(f"Visiting hidden URL: {self._hidden_url}")
                 return session.cookies.get_dict()
             else:
-                error_message = f"Error visiting hidden URL: {response}"
+                error_message = f"Error visiting hidden URL: {response.json()}"
                 logger.error(error_message)
                 raise RequestException(error_message)
 

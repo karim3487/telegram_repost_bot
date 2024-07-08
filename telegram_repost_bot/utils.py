@@ -3,12 +3,13 @@ import re
 from typing import List, Union
 
 import emoji
-from pyrogram import Client
-from pyrogram.enums import MessageEntityType
-from pyrogram.types import Message, MessageEntity
+from telethon import TelegramClient
+from telethon.tl.patched import Message
 
 from telegram_repost_bot.config_reader import config
 from telegram_repost_bot.logging_config import setup_logger
+
+from telethon.tl import types
 
 logger = setup_logger(__name__)
 
@@ -24,7 +25,7 @@ def count_emojis(text):
     return emoji_count
 
 
-def replace_links(text: str, entities: List[MessageEntity], titile: str) -> str:
+def replace_links(text: str, entities: List, titile: str) -> str:
     """
     Replace URLs and text links in the text with HTML links.
 
@@ -43,9 +44,9 @@ def replace_links(text: str, entities: List[MessageEntity], titile: str) -> str:
         text_segment = text[start - emojis_count : end - emojis_count]  # Text segment
         text_before = text[: start - emojis_count]  # Text before new link
         text_after = text[end - emojis_count :]  # Text after new link
-        if entity.type == MessageEntityType.URL:
+        if isinstance(entity, types.MessageEntityUrl):
             link_text = f'<a href="{text_segment}">{text_segment}</a>'
-        elif entity.type == MessageEntityType.TEXT_LINK:
+        elif isinstance(entity, types.MessageEntityTextUrl):
             link_text = f'<a href="{entity.url}">{text_segment}</a>'
         else:
             continue
@@ -71,10 +72,10 @@ def parse_post(message: Message) -> Union[tuple[str, str], None]:
     Returns:
         Union[tuple[str, str], None]: A tuple containing the title and content of the post, or None if parsing fails.
     """
-    text = message.text or message.caption
+    text = message.message
     text = str(text)
     try:
-        entities = message.entities or message.caption_entities
+        entities = message.entities
         title = text.split("\n", 1)[0].strip()
         content = replace_links(text, entities, title)
         content = remove_hashtags(content)
@@ -113,7 +114,7 @@ def is_post(text: str, hashtag_ru: str, hashtag_kg: str) -> bool:
     return has_hashtags
 
 
-async def send_telegram_message(app: Client, message: str) -> None:
+async def send_telegram_message(app: TelegramClient, message: str) -> None:
     await app.send_message(config.admin_username, f"**Error occurred**: {message}")
 
 
@@ -128,12 +129,10 @@ def clean_message(message: Message) -> dict:
     c_msg = {
         "id": message.id,
         "username": message.chat.username,
-        "text": message.text,
-        "caption": message.caption,
+        "text": message.message,
         "date": message.date.strftime("%d.%m.%Y, %H:%M:%S"),
         "media": message.media,
-        "caption_entities": message.caption_entities,
         "entities": message.entities,
-        "url": message.link,
+        "url": f"https://t.me/{message.chat.username}/{message.id}",
     }
     return c_msg

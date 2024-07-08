@@ -1,8 +1,10 @@
 import json
+from pathlib import Path
+from typing import Optional
 
 from requests.exceptions import RequestException
-from pyrogram import Client, filters
-from pyrogram.types import Message
+from telethon import TelegramClient, events
+from telethon.tl.patched import Message
 
 from config_reader import config
 from telegram_repost_bot.logging_config import setup_logger
@@ -17,21 +19,44 @@ from wp_api import wordpress_ru_api, wordpress_kg_api
 
 logger = setup_logger(__name__)
 
-app = Client("../telegram_sessions/net3487", config.api_id, config.api_hash)
+
+def ensure_directory_exists(directory_path: Path) -> None:
+    """
+    Ensure the specified directory exists. If not, create it.
+
+    :param directory_path: Path to the directory to check/create.
+    """
+    try:
+        directory_path.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Directory {directory_path} is ready.")
+    except Exception as e:
+        logger.error(
+            f"An error occurred while creating the directory {directory_path}: {e}"
+        )
+
+
+session_dir = Path.cwd() / "telegram_sessions"
+ensure_directory_exists(session_dir)
+session_file = session_dir / "net3487"
+
+app = TelegramClient(
+    str(session_file),
+    config.api_id,
+    config.api_hash,
+    system_version="4.16.30-vxCUSTOM",
+)
 
 
 def log_new_message(chat_username: str, message: str) -> None:
     logger.debug(f"New message in chat {chat_username}. Message: {message}")
 
 
-@app.on_message(
-    filters.chat([config.chat_ru_username, config.chat_kg_username]) & ~filters.photo
-)
-async def channel_text_message_handler(client: Client, message: Message):
+async def proceed_media_message(message: Message, app: TelegramClient) -> None:
     """
-    Handler for chat text messages
-    :param message: Message object
-    :return:
+    Handler for chat media messages.
+
+    :param message: Message object.
+    :param app: TelegramClient instance.
     """
     chat_username = message.chat.username
     c_msg = clean_message(message)
@@ -40,18 +65,53 @@ async def channel_text_message_handler(client: Client, message: Message):
     )
     log_new_message(chat_username, message_json)
 
-    if not message.text:
+    if not message.message:
         return
 
-    text_post = message.text
+    text_post = message.message
     if not is_post(text_post, config.hashtag_ru, config.hashtag_kg):
         logger.debug(
-            f"Processed text message from {chat_username}. It's not a post. Message: {message_json}"
+            f"Processed media message from {chat_username}. It's not a post. Message: {message_json}"
+        )
+        return
+
+    result: Optional[tuple[str, str]] = parse_post(message)
+    downloads_dir = Path(__file__).resolve().parent / "downloads"
+    ensure_directory_exists(downloads_dir)
+    image_path = await app.download_media(message, file=str(downloads_dir))
+    if result is None:
+        return
+
+    title, content = result
+    if chat_username == config.chat_kg_username:
+        wordpress_kg_api.publish_post_to_wordpress(title, content, image_path)
+    elif chat_username == config.chat_ru_username:
+        wordpress_ru_api.publish_post_to_wordpress(title, content, image_path)
+
+    logger.info(
+        f"Processed media message from {chat_username}. Message: {message_json}"
+    )
+
+
+async def proceed_text_message(message: Message) -> None:
+    """
+    Handler for chat text messages.
+
+    :param message: Message object.
+    """
+    c_msg = clean_message(message)
+    chat_username = message.chat.username
+
+    text_post = message.message
+
+    if not is_post(text_post, config.hashtag_ru, config.hashtag_kg):
+        logger.debug(
+            f"Processed text message from {chat_username}. It's not a post. Message: {c_msg}"
         )
         return
 
     try:
-        result = parse_post(message)
+        result: Optional[tuple[str, str]] = parse_post(message)
         if result is None:
             return
 
@@ -60,79 +120,47 @@ async def channel_text_message_handler(client: Client, message: Message):
             wordpress_kg_api.publish_post_to_wordpress(title, content)
         elif chat_username == config.chat_ru_username:
             wordpress_ru_api.publish_post_to_wordpress(title, content)
-    except RequestException as e:
-        await send_telegram_message(app, str(e))
-        await app.forward_messages(
-            config.admin_username, message.sender_chat.id, message.id
+    except Exception as e:
+        logger.error(
+            f"Exception while processing text message from {chat_username}: {e}"
         )
-    except TypeError as e:
-        await send_telegram_message(app, str(e))
-        await app.forward_messages(
-            config.admin_username, message.sender_chat.id, message.id
-        )
-    except ValueError as e:
-        await send_telegram_message(app, str(e))
-        await app.forward_messages(
-            config.admin_username, message.sender_chat.id, message.id
-        )
-    logger.info(f"Processed text message from {chat_username}. Message: {message_json}")
+
+    logger.info(f"Processed text message from {chat_username}. Message: {c_msg}")
 
 
-@app.on_message(
-    filters.chat([config.chat_ru_username, config.chat_kg_username]) & filters.media
-)
-async def channel_media_message_handler(client: Client, message: Message):
+async def new_message_handler(event: events.NewMessage.Event) -> None:
     """
-    Handler for chat media messages
-    :param message: Message object
-    :return:
+    Handler for new messages in specified chats.
+
+    :param event: Event object.
     """
-    chat_username = message.chat.username
-    c_msg = clean_message(message)
-    message_json = json.dumps(
-        c_msg, default=custom_json_serializer, ensure_ascii=False, indent=4
-    )
-    log_new_message(chat_username, message_json)
+    log_new_message(event.chat.title, event.message.message.replace("\n", "\\n"))
 
-    if not message.caption:
-        return
-
-    text_post = message.caption
-    if not is_post(text_post, config.hashtag_ru, config.hashtag_kg):
-        logger.debug(
-            f"Processed media message from {chat_username}. It's not a post. Message: {message_json}"
-        )
+    if not event.message.message:
         return
 
     try:
-        result = parse_post(message)
-        image_path = await app.download_media(message.photo.file_id)
-        if result is None:
-            return
-
-        title, content = result
-        if chat_username == config.chat_kg_username:
-            wordpress_kg_api.publish_post_to_wordpress(title, content, image_path)
-        elif chat_username == config.chat_ru_username:
-            wordpress_ru_api.publish_post_to_wordpress(title, content, image_path)
+        if event.message.photo:
+            await proceed_media_message(event.message, app)
+        else:
+            await proceed_text_message(event.message)
     except RequestException as e:
         await send_telegram_message(app, str(e))
-        await app.forward_messages(
-            config.admin_username, message.sender_chat.id, message.id
-        )
+        await app.forward_messages(config.admin_username, event.message)
     except TypeError as e:
         await send_telegram_message(app, str(e))
-        await app.forward_messages(
-            config.admin_username, message.sender_chat.id, message.id
-        )
+        await app.forward_messages(config.admin_username, event.message)
     except ValueError as e:
         await send_telegram_message(app, str(e))
-        await app.forward_messages(
-            config.admin_username, message.sender_chat.id, message.id
-        )
-    logger.info(
-        f"Processed media message from {chat_username}. Message: {message_json}"
-    )
+        await app.forward_messages(config.admin_username, event.message)
 
 
-app.run()
+app.add_event_handler(
+    new_message_handler,
+    events.NewMessage(chats=[config.chat_ru_username, config.chat_kg_username]),
+)
+
+# Run the Telegram client
+with app:
+    logger.info("Client started...")
+    app.run_until_disconnected()
