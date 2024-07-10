@@ -73,7 +73,6 @@ def parse_post(message: Message) -> Union[tuple[str, str], None]:
         Union[tuple[str, str], None]: A tuple containing the title and content of the post, or None if parsing fails.
     """
     text = message.message
-    text = str(text)
     try:
         entities = message.entities
         title = text.split("\n", 1)[0].strip()
@@ -88,11 +87,13 @@ def parse_post(message: Message) -> Union[tuple[str, str], None]:
 
         return title, content
     except TypeError as e:
+        text = {text.replace("\n", "\\n")}
         error_message = f"TypeError occurred: {e}. Message='{text}'."
         logger.error(error_message, exc_info=True)
         raise TypeError(error_message)
     except IndexError as e:
-        error_message = f"IndexError occurred: {e}. Message='{text}'."
+        text = {text.replace("\n", "\\n")}
+        error_message = f"TypeError occurred: {e}. Message='{text}'."
         logger.error(error_message, exc_info=True)
         raise ValueError(error_message)
 

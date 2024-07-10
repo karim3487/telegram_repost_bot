@@ -20,6 +20,12 @@ from wp_api import wordpress_ru_api, wordpress_kg_api
 logger = setup_logger(__name__)
 
 
+def write_to_file(file_path, title, content):
+    content = content.replace("\n", "\\n")
+    with open(file_path, "a") as file:
+        file.write(f"{title}, {content}\n")
+
+
 def ensure_directory_exists(directory_path: Path) -> None:
     """
     Ensure the specified directory exists. If not, create it.
@@ -84,9 +90,11 @@ async def proceed_media_message(message: Message, app: TelegramClient) -> None:
 
     title, content = result
     if chat_username == config.chat_kg_username:
-        wordpress_kg_api.publish_post_to_wordpress(title, content, image_path)
+        logger.info("Публикация поста...")
+        write_to_file("kg_chat.txt", title, content)
     elif chat_username == config.chat_ru_username:
-        wordpress_ru_api.publish_post_to_wordpress(title, content, image_path)
+        logger.info("Публикация поста...")
+        write_to_file("ru_chat.txt", title, content)
 
     logger.info(
         f"Processed media message from {chat_username}. Message: {message_json}"
@@ -99,8 +107,12 @@ async def proceed_text_message(message: Message) -> None:
 
     :param message: Message object.
     """
-    c_msg = clean_message(message)
     chat_username = message.chat.username
+    c_msg = clean_message(message)
+    message_json = json.dumps(
+        c_msg, default=custom_json_serializer, ensure_ascii=False, indent=4
+    )
+    log_new_message(chat_username, message_json)
 
     text_post = message.message
 
@@ -117,9 +129,11 @@ async def proceed_text_message(message: Message) -> None:
 
         title, content = result
         if chat_username == config.chat_kg_username:
-            wordpress_kg_api.publish_post_to_wordpress(title, content)
+            logger.info("Публикация поста...")
+            write_to_file("kg_chat.txt", title, content)
         elif chat_username == config.chat_ru_username:
-            wordpress_ru_api.publish_post_to_wordpress(title, content)
+            logger.info("Публикация поста...")
+            write_to_file("ru_chat.txt", title, content)
     except Exception as e:
         logger.error(
             f"Exception while processing text message from {chat_username}: {e}"
