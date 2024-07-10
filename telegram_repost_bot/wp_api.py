@@ -1,5 +1,5 @@
 import base64
-from typing import List
+from typing import List, Tuple
 
 import requests
 from requests import RequestException
@@ -29,8 +29,11 @@ class BaseApi:
         self, data: dict, session: requests.Session, image_path: str | None = None
     ) -> None:
         if image_path:
-            image_id = self.upload_image_to_wordpress(image_path, session)
+            image_id, image_url = self.upload_image_to_wordpress(image_path, session)
             data["featured_media"] = image_id
+            data["content"] = (
+                f'<img src="{image_url}" alt="Image description" />' + data["content"]
+            )
         response = session.post(f"{self._url}/wp/v2/posts", json=data)
         logger.info(
             f"Publishing post to {self.__class__.__name__} - Status code: {response.status_code}. Response: {response.json()}"
@@ -73,13 +76,13 @@ class BaseApi:
         wordpress_token = base64.b64encode(wordpress_credentials.encode())
         return wordpress_token
 
-    def upload_image_to_wordpress(self, image_path, session) -> requests.Response:
+    def upload_image_to_wordpress(self, image_path, session) -> Tuple[int, str]:
         files = {"file": open(image_path, "rb")}
         response = session.post(f"{self._url}/wp/v2/media", files=files)
         if response.status_code == 201:
             media_data = response.json()
             logger.info(f"Publishing image to {self.__class__.__name__}: {media_data}")
-            return media_data["id"]
+            return media_data["id"], media_data["source_url"]
         else:
             error_text = f"Error when publishing news:{response.json()}"
             logger.error(error_text, exc_info=True)

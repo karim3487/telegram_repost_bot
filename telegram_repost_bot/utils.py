@@ -25,7 +25,7 @@ def count_emojis(text):
     return emoji_count
 
 
-def replace_links(text: str, entities: List, titile: str) -> str:
+def replace_links(text: str, entities: List, title: str) -> str:
     """
     Replace URLs and text links in the text with HTML links.
 
@@ -40,7 +40,7 @@ def replace_links(text: str, entities: List, titile: str) -> str:
     for entity in entities:
         start = entity.offset + offset_correction  # Starting position
         end = start + entity.length  # Ending position
-        emojis_count = count_emojis(text[len(titile) : start])  # Count of emojis
+        emojis_count = count_emojis(text[:start])  # Count of emojis
         text_segment = text[start - emojis_count : end - emojis_count]  # Text segment
         text_before = text[: start - emojis_count]  # Text before new link
         text_after = text[end - emojis_count :]  # Text after new link
@@ -73,7 +73,6 @@ def parse_post(message: Message) -> Union[tuple[str, str], None]:
         Union[tuple[str, str], None]: A tuple containing the title and content of the post, or None if parsing fails.
     """
     text = message.message
-    text = str(text)
     try:
         entities = message.entities
         title = text.split("\n", 1)[0].strip()
@@ -88,11 +87,13 @@ def parse_post(message: Message) -> Union[tuple[str, str], None]:
 
         return title, content
     except TypeError as e:
-        error_message = f"TypeError occurred: {e}. Message='{text}'."
+        message = {text.replace("\n", "\\n")}
+        error_message = f"TypeError occurred: {e}. Message='{message}'."
         logger.error(error_message, exc_info=True)
         raise TypeError(error_message)
     except IndexError as e:
-        error_message = f"IndexError occurred: {e}. Message='{text}'."
+        message = {text.replace("\n", "\\n")}
+        error_message = f"IndexError occurred: {e}. Message='{message}'."
         logger.error(error_message, exc_info=True)
         raise ValueError(error_message)
 
@@ -114,8 +115,11 @@ def is_post(text: str, hashtag_ru: str, hashtag_kg: str) -> bool:
     return has_hashtags
 
 
-async def send_telegram_message(app: TelegramClient, message: str) -> None:
-    await app.send_message(config.admin_username, f"**Error occurred**: {message}")
+async def send_telegram_message(
+    app: TelegramClient, chat_id: str, message: str
+) -> None:
+    message = message.replace("\n", "\\n")
+    await app.send_message(chat_id, f"**Error occurred**: {message}")
 
 
 def custom_json_serializer(obj):

@@ -25,8 +25,14 @@ class Settings(BaseSettings):
         2,  # ID of category "Кабарлар"
         86,  # ID of category "Кыска жаңылыктар"
     ]
-    chat_ru_username: str = "kloopnews"
-    chat_kg_username: str = "kloopkyrgyz"
+    channel_ru_username: str = (
+        "kloopnews"  # Russian-language channel that will be monitored by a bot
+    )
+    group_ru_id: int  # Russian-language group where error messages will be sent
+    channel_kg_username: str = (
+        "kloopkyrgyz"  # Kyrgyz-language channel that will be monitored by a bot
+    )
+    group_kg_id: int  # Kyrgyz-language group where error messages will be sent
     hashtag_ru: str = "#новости"
     hashtag_kg: str = "#кабарлар"
 
