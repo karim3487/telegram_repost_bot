@@ -3,13 +3,14 @@ import re
 from typing import List, Union
 
 import emoji
-from telethon import TelegramClient
 from telethon.tl.patched import Message
 
 from telegram_repost_bot.config_reader import config
 from telegram_repost_bot.logging_config import setup_logger
 
 from telethon.tl import types
+
+from telegram_repost_bot.utils.message_service import NotificationService, MessageType
 
 logger = setup_logger(__name__)
 
@@ -115,11 +116,19 @@ def is_post(text: str, hashtag_ru: str, hashtag_kg: str) -> bool:
     return has_hashtags
 
 
-async def send_telegram_message(
-    app: TelegramClient, chat_id: str, message: str
-) -> None:
-    message = message.replace("\n", "\\n")
-    await app.send_message(chat_id, f"**Error occurred**: {message}")
+async def send_notifications(chat_id: int, message: str) -> None:
+    notification_service = NotificationService()
+    notification_service.send_email_error(
+        body=f"<i>{message}</i>",
+        subject="Telegram Repost Bot",
+        recipients=[
+            config.admin_email,
+        ],
+    )
+    notification_service.send_tg_error(
+        body=f"<i>{message}</i>",
+        recipients=[config.admin_tg_id, chat_id],
+    )
 
 
 def custom_json_serializer(obj):
