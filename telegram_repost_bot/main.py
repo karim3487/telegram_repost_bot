@@ -1,13 +1,15 @@
 import json
 from pathlib import Path
+from threading import Thread
 from typing import Optional
 
+from flask import Flask, jsonify
 from requests.exceptions import RequestException
 from telethon import TelegramClient, events
 from telethon.tl.patched import Message
 from telethon.tl.types import MessageMediaPhoto
 
-from config_reader import config
+from telegram_repost_bot.config_reader import config
 from telegram_repost_bot.logging_config import setup_logger
 from telegram_repost_bot.utils import (
     parse_post,
@@ -16,7 +18,7 @@ from telegram_repost_bot.utils import (
     clean_message,
     custom_json_serializer,
 )
-from wp_api import wordpress_ru_api, wordpress_kg_api
+from telegram_repost_bot.wp_api import wordpress_ru_api, wordpress_kg_api
 
 logger = setup_logger(__name__)
 
@@ -144,7 +146,26 @@ app.add_event_handler(
     events.NewMessage(chats=[config.channel_ru_username, config.channel_kg_username]),
 )
 
-# Run the Telegram client
-with app:
-    logger.info("Client started...")
-    app.run_until_disconnected()
+flask_app = Flask(__name__)
+
+
+@flask_app.route("/health", methods=["GET"])
+def health_check():
+    if app.is_connected():
+        return jsonify({"status": "ok", "message": "Bot is running"}), 200
+    return jsonify({"status": "error", "message": "Bot is not running"}), 500
+
+
+def run_flask():
+    flask_app.run(host="0.0.0.0", port=5001)
+
+
+flask_thread = Thread(target=run_flask)
+flask_thread.start()
+
+try:
+    with app:
+        logger.info("Client started...")
+        app.run_until_disconnected()
+except Exception as e:
+    logger.error(f"Client encountered an error: {e}")

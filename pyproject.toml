@@ -4,6 +4,7 @@ version = "0.1.0"
 description = ""
 authors = ["Karim Kabirov <karim3487@gmail.com>"]
 readme = "README.md"
+include = ["README.md", "telegram_repost_bot/**", "telegram_sessions/**", "tests", ".env"]
 
 [tool.poetry.dependencies]
 python = "^3.10"
@@ -12,6 +13,7 @@ python-dotenv = "^1.0.1"
 requests = "^2.31.0"
 emoji = "^2.11.0"
 telethon = "^1.36.0"
+flask = "^3.0.3"
 
 [tool.poetry.group.dev]
 optional = true
