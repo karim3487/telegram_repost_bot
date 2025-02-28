@@ -36,6 +36,11 @@ class Settings(BaseSettings):
     hashtag_ru: str = "#новости"
     hashtag_kg: str = "#кабарлар"
 
+    notification_service_base_url: str = "http://localhost:8000"
+    admin_tg_id: int
+    admin_email: str
+    project_name = "Telegram Repost Bot"
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

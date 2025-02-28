@@ -11,10 +11,10 @@ from telethon.tl.types import MessageMediaPhoto
 
 from telegram_repost_bot.config_reader import config
 from telegram_repost_bot.logging_config import setup_logger
-from telegram_repost_bot.utils import (
+from telegram_repost_bot.utils.utils import (
     parse_post,
     is_post,
-    send_telegram_message,
+    send_notifications,
     clean_message,
     custom_json_serializer,
 )
@@ -84,6 +84,7 @@ async def process_post(
             wordpress_ru_api.publish_post_to_wordpress(title, content, image_path)
     except Exception as e:
         logger.error(f"Exception while processing message from {chat_username}: {e}")
+        raise e
     else:
         text_without_new_lines = text_post.replace("\n", "\\n")
         logger.info(
@@ -118,7 +119,7 @@ async def new_message_handler(event: events.NewMessage.Event) -> None:
     """
     log_new_message(event.chat.title, event.message.message.replace("\n", "\\n"))
     if event.chat.title == config.channel_kg_username:
-        chat_id = config.chat_kg_id
+        chat_id = config.group_kg_id
     else:
         chat_id = config.group_ru_id
 
@@ -126,7 +127,7 @@ async def new_message_handler(event: events.NewMessage.Event) -> None:
         try:
             await proceed_message(event.message, app)
         except (RequestException, TypeError, ValueError) as e:
-            await send_telegram_message(app, chat_id, str(e))
+            await send_notifications([chat_id], str(e))
             await app.forward_messages(chat_id, event.message)
 
 
