@@ -1,12 +1,15 @@
 import logging
 import sys
+from pathlib import Path
 
 
 def setup_logger(name, level=logging.DEBUG):
     logger = logging.getLogger(name)
     logger.setLevel(level)
 
-    file_handler = logging.FileHandler(f"{name}.log")
+    Path.mkdir(Path("logs"), exist_ok=True)
+
+    file_handler = logging.FileHandler(f"logs/{name}.log")
     formatter = logging.Formatter("%(name)s %(asctime)s %(levelname)s %(message)s")
     file_handler.setFormatter(formatter)
 

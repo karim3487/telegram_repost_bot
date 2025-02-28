@@ -1,22 +1,24 @@
 import json
 from pathlib import Path
+from threading import Thread
 from typing import Optional
 
+from flask import Flask, jsonify
 from requests.exceptions import RequestException
 from telethon import TelegramClient, events
 from telethon.tl.patched import Message
 from telethon.tl.types import MessageMediaPhoto
 
-from config_reader import config
+from telegram_repost_bot.config_reader import config
 from telegram_repost_bot.logging_config import setup_logger
-from telegram_repost_bot.utils import (
+from telegram_repost_bot.utils.utils import (
     parse_post,
     is_post,
-    send_telegram_message,
+    send_notifications,
     clean_message,
     custom_json_serializer,
 )
-from wp_api import wordpress_ru_api, wordpress_kg_api
+from telegram_repost_bot.wp_api import wordpress_ru_api, wordpress_kg_api
 
 logger = setup_logger(__name__)
 
@@ -82,6 +84,7 @@ async def process_post(
             wordpress_ru_api.publish_post_to_wordpress(title, content, image_path)
     except Exception as e:
         logger.error(f"Exception while processing message from {chat_username}: {e}")
+        raise e
     else:
         text_without_new_lines = text_post.replace("\n", "\\n")
         logger.info(
@@ -116,7 +119,7 @@ async def new_message_handler(event: events.NewMessage.Event) -> None:
     """
     log_new_message(event.chat.title, event.message.message.replace("\n", "\\n"))
     if event.chat.title == config.channel_kg_username:
-        chat_id = config.chat_kg_id
+        chat_id = config.group_kg_id
     else:
         chat_id = config.group_ru_id
 
@@ -124,7 +127,7 @@ async def new_message_handler(event: events.NewMessage.Event) -> None:
         try:
             await proceed_message(event.message, app)
         except (RequestException, TypeError, ValueError) as e:
-            await send_telegram_message(app, chat_id, str(e))
+            await send_notifications([chat_id], str(e))
             await app.forward_messages(chat_id, event.message)
 
 
@@ -144,7 +147,26 @@ app.add_event_handler(
     events.NewMessage(chats=[config.channel_ru_username, config.channel_kg_username]),
 )
 
-# Run the Telegram client
-with app:
-    logger.info("Client started...")
-    app.run_until_disconnected()
+flask_app = Flask(__name__)
+
+
+@flask_app.route("/health", methods=["GET"])
+def health_check():
+    if app.is_connected():
+        return jsonify({"status": "ok", "message": "Bot is running"}), 200
+    return jsonify({"status": "error", "message": "Bot is not running"}), 500
+
+
+def run_flask():
+    flask_app.run(host="0.0.0.0", port=5001)
+
+
+flask_thread = Thread(target=run_flask)
+flask_thread.start()
+
+try:
+    with app:
+        logger.info("Client started...")
+        app.run_until_disconnected()
+except Exception as e:
+    logger.error(f"Client encountered an error: {e}")
