@@ -48,3 +48,9 @@ poetry shell
 ```shell
 python main.py
 ```
+
+- Run health checker script:
+
+```shell
+*/1 * * * * cd /path/to/project/ && poetry run python telegram_repost_bot/check_health_script.py >> /path/to/project/logs/log.log 2>&1
+```
