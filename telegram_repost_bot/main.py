@@ -127,7 +127,7 @@ async def new_message_handler(event: events.NewMessage.Event) -> None:
         try:
             await proceed_message(event.message, app)
         except (RequestException, TypeError, ValueError) as e:
-            await send_notifications(chat_id, str(e))
+            await send_notifications([chat_id], str(e))
             await app.forward_messages(chat_id, event.message)
 
 
